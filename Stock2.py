@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
+from sklearn.preprocessing import MinMaxScaler
 
 # Fetch stock data
 def fetch_yahoo_finance_data(symbol):
@@ -16,10 +17,15 @@ def fetch_yahoo_finance_data(symbol):
         data = data.reset_index()
         data["ds"] = pd.to_datetime(data["Date"]).dt.tz_localize(None)
         data = data.rename(columns={"Close": "y"})
-        return data
+        
+        # Normalize stock prices
+        scaler = MinMaxScaler()
+        data[["y"]] = scaler.fit_transform(data[["y"]])
+        
+        return data, scaler
     except Exception as e:
         st.error(f"Error fetching stock data: {e}")
-        return None
+        return None, None
 
 # Generate next trading days
 def get_next_trading_days(start_date, days=15):
@@ -31,13 +37,17 @@ def get_next_trading_days(start_date, days=15):
     return trading_days
 
 # Train & predict using Prophet
-def predict_stock_prices(data, days=15):
+def predict_stock_prices(data, scaler, days=15):
     try:
-        model = Prophet(daily_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.2)
+        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.5)
         model.fit(data)
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
         forecast = model.predict(future)
+        
+        # Denormalize predictions
+        forecast[["yhat", "yhat_lower", "yhat_upper"]] = scaler.inverse_transform(forecast[["yhat", "yhat_lower", "yhat_upper"]])
+        
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
         st.error(f"Error in Prophet prediction: {e}")
@@ -48,12 +58,13 @@ st.title("Stock Price Prediction App")
 
 stock_symbol = st.text_input("Enter Stock Symbol", "AAPL")
 if st.button("Predict"):
-    stock_data = fetch_yahoo_finance_data(stock_symbol)
-    if stock_data is None:
+    stock_data, scaler = fetch_yahoo_finance_data(stock_symbol)
+    if stock_data is None or scaler is None:
         st.error("Stock data fetch failed.")
     else:
         last_7_days = stock_data.tail(7)
-        predictions = predict_stock_prices(stock_data, days=15)
+        last_7_days[["y"]] = scaler.inverse_transform(last_7_days[["y"]])
+        predictions = predict_stock_prices(stock_data, scaler, days=15)
         if predictions is not None:
             st.write("### Last 7 Days Actual Prices:")
             st.dataframe(last_7_days[["ds", "y"]])
