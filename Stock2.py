@@ -12,7 +12,7 @@ from sklearn.preprocessing import MinMaxScaler
 def fetch_yahoo_finance_data(symbol):
     try:
         stock = yf.Ticker(symbol)
-        data = stock.history(period="6mo")
+        data = stock.history(period="1y")
         if data.empty:
             return None, None
         data = data.reset_index()
@@ -44,7 +44,7 @@ def get_next_trading_days(start_date, days=15):
 # Train & predict using Prophet
 def predict_stock_prices(data, scaler, days=15):
     try:
-        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.03, seasonality_mode="additive")
+        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.01, seasonality_mode="multiplicative")
         model.add_regressor("momentum_5d")
         model.add_regressor("volatility")
         model.fit(data)
