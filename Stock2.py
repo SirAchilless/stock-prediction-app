@@ -14,7 +14,7 @@ def fetch_yahoo_finance_data(symbol):
             return None
         data = data.reset_index()
         data["ds"] = pd.to_datetime(data["Date"]).dt.tz_localize(None)
-        data = data.rename(columns={"Close": "y"})
+        data = data.rename(columns={"Close": "Price"})
         return data
     except Exception as e:
         st.error(f"Error fetching stock data: {e}")
@@ -33,11 +33,12 @@ def get_next_trading_days(start_date, days=15):
 def predict_stock_prices(data, days=15):
     try:
         model = Prophet(daily_seasonality=True)
-        model.fit(data)
+        model.fit(data.rename(columns={"Price": "y"}))
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
         forecast = model.predict(future)
-        return forecast[["ds", "yhat"]]
+        forecast = forecast[["ds", "yhat"]].rename(columns={"yhat": "Price"})
+        return forecast
     except Exception as e:
         st.error(f"Error in Prophet prediction: {e}")
         return None
@@ -54,17 +55,16 @@ if st.button("Predict"):
         last_7_days = stock_data.tail(7)  # Get last 7 days of actual prices
         predictions = predict_stock_prices(stock_data, days=15)  # Predict next 15 days
         if predictions is not None:
-            st.write("### Last 7 Days Actual Prices:")
-            st.dataframe(last_7_days[["ds", "y"]])
+            combined_data = pd.concat([last_7_days, predictions])
+            combined_data = combined_data.rename(columns={"ds": "Date"})
             
-            st.write("### Predicted Stock Prices for Next 15 Days:")
-            st.dataframe(predictions)
+            st.write("### Stock Prices (Actual & Predicted):")
+            st.dataframe(combined_data)
             
             fig, ax = plt.subplots()
-            ax.plot(last_7_days["ds"], last_7_days["y"], marker="o", linestyle="-", color="g", label="Actual Price (Last 7 Days)")
-            ax.plot(predictions["ds"], predictions["yhat"], marker="o", linestyle="-", color="b", label="Predicted Price (Next 15 Days)")
+            ax.plot(combined_data["Date"], combined_data["Price"], marker="o", linestyle="-", color="b", label="Stock Price")
             ax.set_xlabel("Date")
-            ax.set_ylabel("Stock Price")
+            ax.set_ylabel("Price")
             ax.set_title("Stock Price Trends")
             plt.xticks(rotation=45)
             plt.legend()
