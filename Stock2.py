@@ -43,7 +43,7 @@ def get_next_trading_days(start_date, days=15):
 # Train & predict using Prophet
 def predict_stock_prices(data, scaler, days=15):
     try:
-        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.04, seasonality_mode="multiplicative")
+        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.03, seasonality_mode="additive")
         model.add_regressor("momentum_5d")
         model.add_regressor("volatility")
         model.fit(data)
@@ -56,7 +56,7 @@ def predict_stock_prices(data, scaler, days=15):
         forecast = model.predict(future)
         
         # Denormalize predictions for stock prices only
-        forecast["yhat"] = scaler.inverse_transform(forecast[["yhat"]].values.reshape(-1, 1)).flatten()
+        forecast["yhat"] = scaler.inverse_transform(forecast[["yhat"]])[:, 0]
         
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
