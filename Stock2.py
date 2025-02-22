@@ -56,7 +56,7 @@ def predict_stock_prices(data, scaler, days=15):
         forecast = model.predict(future)
         
         # Denormalize predictions for stock prices only
-        forecast["yhat"] = scaler.inverse_transform(forecast[["yhat"]].values.reshape(-1, 1)).flatten()
+        forecast["yhat"] = scaler.inverse_transform(np.hstack((forecast[["yhat"]], np.zeros((len(forecast), 2)))))[:, 0]
         
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
