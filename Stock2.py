@@ -4,12 +4,13 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import streamlit as st
 from prophet import Prophet
+from prophet.diagnostics import cross_validation, performance_metrics
 
 # Fetch stock data
 def fetch_yahoo_finance_data(symbol):
     try:
         stock = yf.Ticker(symbol)
-        data = stock.history(period="3mo")
+        data = stock.history(period="6mo")
         if data.empty:
             return None
         data = data.reset_index()
@@ -32,12 +33,12 @@ def get_next_trading_days(start_date, days=15):
 # Train & predict using Prophet
 def predict_stock_prices(data, days=15):
     try:
-        model = Prophet()
+        model = Prophet(daily_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.2)
         model.fit(data)
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
         forecast = model.predict(future)
-        return forecast[["ds", "yhat"]]
+        return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
         st.error(f"Error in Prophet prediction: {e}")
         return None
@@ -63,6 +64,7 @@ if st.button("Predict"):
             fig, ax = plt.subplots()
             ax.plot(last_7_days["ds"], last_7_days["y"], marker="o", linestyle="-", color="g", label="Actual Price")
             ax.plot(predictions["ds"], predictions["yhat"], marker="o", linestyle="-", color="b", label="Predicted Price")
+            ax.fill_between(predictions["ds"], predictions["yhat_lower"], predictions["yhat_upper"], color='blue', alpha=0.2, label="Confidence Interval")
             ax.set_xlabel("Date")
             ax.set_ylabel("Stock Price")
             ax.set_title("Stock Price Actuals & Predictions")
