@@ -50,8 +50,8 @@ def predict_stock_prices(data, scaler, days=15):
         
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
-        future["momentum_5d"] = data["momentum_5d"].iloc[-5:].values.tolist()
-        future["volatility"] = data["volatility"].iloc[-5:].values.tolist()
+        future["momentum_5d"] = data["momentum_5d"].iloc[-1]
+        future["volatility"] = data["volatility"].iloc[-1]
         
         forecast = model.predict(future)
         
