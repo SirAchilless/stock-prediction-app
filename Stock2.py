@@ -56,7 +56,7 @@ def predict_stock_prices(data, scaler, days=15):
         forecast = model.predict(future)
         
         # Denormalize predictions for stock prices only
-        forecast[["yhat", "yhat_lower", "yhat_upper"]] = scaler.inverse_transform(forecast[["yhat", "yhat_lower", "yhat_upper"]])
+        forecast[["yhat"]] = scaler.inverse_transform(forecast[["yhat"]])
         
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
@@ -85,7 +85,7 @@ if st.button("Predict"):
             fig, ax = plt.subplots()
             ax.plot(last_7_days["ds"], last_7_days["y"], marker="o", linestyle="-", color="g", label="Actual Price")
             ax.plot(predictions["ds"], predictions["yhat"], marker="o", linestyle="-", color="b", label="Predicted Price")
-            ax.fill_between(predictions["ds"], predictions["yhat_lower"], predictions["yhat_upper"], color='blue', alpha=0.2, label="Confidence Interval")
+            
             ax.set_xlabel("Date")
             ax.set_ylabel("Stock Price")
             ax.set_title("Stock Price Actuals & Predictions")
