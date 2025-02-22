@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 # Fetch stock data
 def fetch_yahoo_finance_data(symbol):
@@ -23,7 +23,7 @@ def fetch_yahoo_finance_data(symbol):
         data["volatility"] = data["y"].rolling(5).std().fillna(0)
         
         # Scale stock prices using StandardScaler
-        scaler = StandardScaler()
+        scaler = MinMaxScaler()
         data[["y", "momentum_5d", "volatility"]] = scaler.fit_transform(data[["y", "momentum_5d", "volatility"]])
         
         return data, scaler
@@ -43,20 +43,20 @@ def get_next_trading_days(start_date, days=15):
 # Train & predict using Prophet
 def predict_stock_prices(data, scaler, days=15):
     try:
-        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.2)
+        model = Prophet(daily_seasonality=True, weekly_seasonality=True, yearly_seasonality=True, changepoint_prior_scale=0.08, seasonality_mode="multiplicative")
         model.add_regressor("momentum_5d")
         model.add_regressor("volatility")
         model.fit(data)
         
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
-        future["momentum_5d"] = data["momentum_5d"].iloc[-1]
-        future["volatility"] = data["volatility"].iloc[-1]
+        future["momentum_5d"] = data["momentum_5d"].rolling(5).mean().iloc[-5:].mean()
+        future["volatility"] = data["volatility"].rolling(5).mean().iloc[-5:].mean()
         
         forecast = model.predict(future)
         
         # Denormalize predictions for stock prices only
-        forecast["yhat"] = (forecast["yhat"] * scaler.scale_[0]) + scaler.mean_[0]
+        forecast["yhat"] = (forecast["yhat"] * scaler.data_range_[0]) + scaler.data_min_[0]
         
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
