@@ -73,7 +73,7 @@ if st.button("Predict"):
         st.error("Stock data fetch failed.")
     else:
         last_7_days = stock_data.tail(7).copy()
-        last_7_days[["y"]] = scaler.inverse_transform(last_7_days[["y"]])
+        last_7_days["y"] = scaler.inverse_transform(last_7_days[["y"]]).flatten()
         predictions = predict_stock_prices(stock_data, scaler, days=15)
         if predictions is not None:
             st.write("### Last 7 Days Actual Prices:")
