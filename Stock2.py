@@ -56,9 +56,7 @@ def predict_stock_prices(data, scaler, days=15):
         forecast = model.predict(future)
         
         # Denormalize predictions for stock prices only
-        forecast["yhat"] = scaler.inverse_transform(forecast[["yhat"]])
-        forecast["yhat_lower"] = scaler.inverse_transform(forecast[["yhat_lower"]])
-        forecast["yhat_upper"] = scaler.inverse_transform(forecast[["yhat_upper"]])
+        forecast[["yhat", "yhat_lower", "yhat_upper"]] = scaler.inverse_transform(forecast[["yhat", "yhat_lower", "yhat_upper"]])
         
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
@@ -75,7 +73,7 @@ if st.button("Predict"):
         st.error("Stock data fetch failed.")
     else:
         last_7_days = stock_data.tail(7).copy()
-        last_7_days["y"] = scaler.inverse_transform(last_7_days[["y"]])
+        last_7_days[["y"]] = scaler.inverse_transform(last_7_days[["y"]])
         predictions = predict_stock_prices(stock_data, scaler, days=15)
         if predictions is not None:
             st.write("### Last 7 Days Actual Prices:")
