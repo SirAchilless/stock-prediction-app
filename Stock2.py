@@ -7,7 +7,6 @@ import streamlit as st
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
 from sklearn.preprocessing import MinMaxScaler
-import pandas_ta as ta  # ✅ Replacing TA-Lib with Pandas-TA
 
 # Fetch stock data
 def fetch_yahoo_finance_data(symbol):
@@ -20,26 +19,17 @@ def fetch_yahoo_finance_data(symbol):
         data["ds"] = pd.to_datetime(data["Date"]).dt.tz_localize(None)
         data = data.rename(columns={"Close": "y"})
         
-        # Add market sentiment indicators using Pandas-TA
+        # Add market sentiment indicators
         data["momentum_5d"] = data["y"].pct_change(5).fillna(0)
         data["volatility"] = data["y"].rolling(5).std().fillna(0)
         data["rolling_mean_10"] = data["y"].rolling(10).mean().fillna(method='bfill')
-
-        # Add RSI and MACD using Pandas-TA (✅ Replacing TA-Lib)
-        data["RSI"] = ta.rsi(data["y"], length=14)
-        macd = ta.macd(data["y"])
-        data["MACD"] = macd["MACD_12_26_9"]
-        data["MACD_signal"] = macd["MACDs_12_26_9"]
-
-        # Fill missing values if any
-        data.fillna(0, inplace=True)
-
+        
         # Scale stock prices using MinMaxScaler
         scaler = MinMaxScaler()
-        data[["y", "momentum_5d", "volatility", "rolling_mean_10", "RSI", "MACD", "MACD_signal"]] = scaler.fit_transform(
-            data[["y", "momentum_5d", "volatility", "rolling_mean_10", "RSI", "MACD", "MACD_signal"]]
+        data[["y", "momentum_5d", "volatility", "rolling_mean_10"]] = scaler.fit_transform(
+            data[["y", "momentum_5d", "volatility", "rolling_mean_10"]]
         )
-
+        
         return data, scaler
     except Exception as e:
         st.error(f"Error fetching stock data: {e}")
@@ -67,33 +57,27 @@ def predict_stock_prices(data, scaler, days=15):
         model.add_regressor("momentum_5d")
         model.add_regressor("volatility")
         model.add_regressor("rolling_mean_10")
-        model.add_regressor("RSI")
-        model.add_regressor("MACD")
-        model.add_regressor("MACD_signal")
         model.fit(data)
-
+        
         future_dates = get_next_trading_days(data["ds"].max(), days)
         future = pd.DataFrame({"ds": future_dates})
         future["momentum_5d"] = data["momentum_5d"].iloc[-1]
         future["volatility"] = data["volatility"].iloc[-1]
         future["rolling_mean_10"] = data["rolling_mean_10"].iloc[-1]
-        future["RSI"] = data["RSI"].iloc[-1]
-        future["MACD"] = data["MACD"].iloc[-1]
-        future["MACD_signal"] = data["MACD_signal"].iloc[-1]
-
+        
         forecast = model.predict(future)
-
+        
         # Denormalize predictions for stock prices only
-        forecast_values = np.hstack((forecast[["yhat"]], np.zeros((len(forecast), 6))))
+        forecast_values = np.hstack((forecast[["yhat"]], np.zeros((len(forecast), 3))))
         forecast["yhat"] = scaler.inverse_transform(forecast_values)[:, 0]
-
+        
         return forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]]
     except Exception as e:
         st.error(f"Error in Prophet prediction: {e}")
         return None
 
 # Streamlit UI
-st.title("📈 Stock Price Prediction App")
+st.title("Stock Price Prediction App")
 
 stock_symbol = st.text_input("Enter Stock Symbol", "AAPL")
 if st.button("Predict"):
@@ -102,21 +86,21 @@ if st.button("Predict"):
         st.error("Stock data fetch failed.")
     else:
         last_7_days = stock_data.tail(7).copy()
-        last_7_days[["y", "momentum_5d", "volatility", "rolling_mean_10", "RSI", "MACD", "MACD_signal"]] = scaler.inverse_transform(
-            last_7_days[["y", "momentum_5d", "volatility", "rolling_mean_10", "RSI", "MACD", "MACD_signal"]]
+        last_7_days[["y", "momentum_5d", "volatility", "rolling_mean_10"]] = scaler.inverse_transform(
+            last_7_days[["y", "momentum_5d", "volatility", "rolling_mean_10"]]
         )
         predictions = predict_stock_prices(stock_data, scaler, days=15)
         if predictions is not None:
-            st.write("### 📊 Last 7 Days Actual Prices:")
+            st.write("### Last 7 Days Actual Prices:")
             st.dataframe(last_7_days[["ds", "y"]])
-
-            st.write("### 🔮 Predicted Stock Prices (Next 15 Days):")
+            
+            st.write("### Predicted Stock Prices (Next 15 Days):")
             st.dataframe(predictions)
-
+            
             fig, ax = plt.subplots()
             ax.plot(last_7_days["ds"], last_7_days["y"], marker="o", linestyle="-", color="g", label="Actual Price")
             ax.plot(predictions["ds"], predictions["yhat"], marker="o", linestyle="-", color="b", label="Predicted Price")
-
+            
             ax.set_xlabel("Date")
             ax.set_ylabel("Stock Price")
             ax.set_title("Stock Price Actuals & Predictions")
