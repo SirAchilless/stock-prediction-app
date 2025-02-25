@@ -6,3 +6,4 @@ matplotlib
 numpy
 pandas
 scikit-learn
+ta-lib
