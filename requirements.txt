@@ -1,5 +1,5 @@
 setuptools
-numpy --upgrade
+numpy
 pandas-ta
 prophet
 yfinance
