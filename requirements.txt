@@ -1,8 +1,8 @@
 setuptools
+numpy
 pandas-ta
 prophet
 yfinance
-numpy
 matplotlib
 streamlit
 scikit-learn
