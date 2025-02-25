@@ -1,9 +1,7 @@
-streamlit
-yfinance
-prophet
-tensorflow
-matplotlib
-numpy
-pandas
-scikit-learn
 pandas-ta
+prophet
+yfinance
+numpy
+matplotlib
+streamlit
+scikit-learn
