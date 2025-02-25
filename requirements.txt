@@ -1,10 +1,8 @@
 setuptools
-numpy
+numpy --upgrade
 pandas-ta
 prophet
 yfinance
 matplotlib
 streamlit
 scikit-learn
-numpy --upgrade
-
